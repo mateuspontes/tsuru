@@ -1623,6 +1623,32 @@ func (s *AuthSuite) TestUserInfo(c *check.C) {
 	c.Assert(got, check.DeepEquals, expected)
 }
 
+func (s *AuthSuite) TestListUsersWithoutRoles(c *check.C) {
+	conn, _ := db.Conn()
+	defer conn.Close()
+	token := userWithPermission(c)
+	u, err := token.User()
+	c.Assert(err, check.IsNil)
+	request, err := http.NewRequest("GET", "/users", nil)
+	c.Assert(err, check.IsNil)
+	request.Header.Add("Authorization", "bearer "+token.GetValue())
+	recorder := httptest.NewRecorder()
+	handler := RunServer(true)
+	handler.ServeHTTP(recorder, request)
+	c.Assert(recorder.Code, check.Equals, http.StatusOK)
+	c.Assert(recorder.Header().Get("Content-Type"), check.Equals, "application/json")
+	var users []apiUser
+	err = json.NewDecoder(recorder.Body).Decode(&users)
+	c.Assert(err, check.IsNil)
+	c.Assert(users, check.HasLen, 1)
+	c.Assert(u.Email, check.Equals, users[0].Email)
+	emails := []string{users[0].Email}
+	expected := []string{token.GetUserName()}
+	sort.Strings(emails)
+	sort.Strings(expected)
+	c.Assert(emails, check.DeepEquals, expected)
+}
+
 func (s *AuthSuite) TestUserInfoWithoutRoles(c *check.C) {
 	conn, _ := db.Conn()
 	defer conn.Close()
